@@ -11,6 +11,7 @@ const { readFileSync } = require("fs");
 const os = require("os");
 const path = require("path");
 const { DefaultArtifactClient } = require("@actions/artifact");
+import { fetch as undiciFetch, ProxyAgent } from 'undici';
 
 const EXIT_CODE_LEAKS_DETECTED = 2;
 
@@ -223,6 +224,13 @@ echo ${fingerprint} >> .gitleaksignore
         proposedComment.body += `\n\ncc ${process.env.GITLEAKS_NOTIFY_USER_LIST}`;
       }
 
+      const myFetch = (url, options) => {
+        return undiciFetch(url, {
+          ...options,
+          dispatcher: new ProxyAgent(process.env.HTTP_PROXY)
+        })
+      }
+
       // check if there are any review comments on the pull request currently
       let comments = await octokit.request(
         "GET /repos/{owner}/{repo}/pulls/{pull_number}/comments",
@@ -230,6 +238,7 @@ echo ${fingerprint} >> .gitleaksignore
           owner: owner,
           repo: repo,
           pull_number: eventJSON.number,
+          fetch: myFetch
         }
       );
 
